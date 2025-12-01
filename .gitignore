@@ -50,3 +50,15 @@ Thumbs.db
 *.spec
 document_converter.spec
 dist/
+
+# Backend/CLI files (PWA only repo)
+doc_combiner.py
+doc_converter_api.py
+web_ui.py
+requirements.txt
+*.bat
+*.lnk
+templates/
+BACKLOG*.md
+PRD*.md
+~$*.docx
