@@ -35,8 +35,8 @@ jobs:
       - name: Scan for API keys and tokens
         run: |
           echo "Scanning for potential secrets..."
-          # Search for common secret patterns
-          if grep -rE "(api[_-]?key|secret|password|token|private[_-]?key|credential)" --include="*.js" --include="*.html" --include="*.json" ./pwa/ 2>/dev/null; then
+          # Search for common secret patterns (excluding variable names like 'token' or 'tokens')
+          if grep -rE "(api[_-]?key\s*[:=]|secret\s*[:=]|password\s*[:=]|['\"]token['\"]?\s*[:=]|private[_-]?key\s*[:=]|credential\s*[:=])" --include="*.js" --include="*.html" --include="*.json" ./pwa/ 2>/dev/null; then
             echo "❌ WARNING: Potential secrets found in code"
             exit 1
           fi

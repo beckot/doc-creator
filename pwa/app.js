@@ -387,7 +387,7 @@
         continue;
       }
 
-      // Link [text](url)
+      // Link [text](url) or internal link [text](#anchor)
       if (text[i] === '[') {
         flushBuffer();
         i++;
@@ -403,7 +403,12 @@
             url += text[i++];
           }
           i++;
-          runs.push({ text: linkText, link: url });
+          // Check if it's an internal anchor link (#...)
+          if (url.startsWith('#')) {
+            runs.push({ text: linkText, link: url, anchor: url.substring(1) });
+          } else {
+            runs.push({ text: linkText, link: url });
+          }
           continue;
         } else {
           // not a link, treat as plain text
@@ -417,6 +422,18 @@
 
     flushBuffer();
     return runs;
+  }
+
+  // Generate bookmark name from heading text (slug-style)
+  function generateBookmark(text) {
+    // Extract plain text from runs if needed
+    const plainText = typeof text === 'string' ? text : 
+      text.map(r => r.text).join('');
+    return plainText
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 40); // Word bookmark limit
   }
 
   // Parse table into rows of cells
@@ -450,8 +467,12 @@
         // Horizontal rule as border paragraph
         xml += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="999999"/></w:pBdr></w:pPr><w:r><w:t></w:t></w:r></w:p>';
       } else if (token.type === 'heading') {
+        const bookmark = generateBookmark(token.content);
+        const bookmarkId = Math.floor(Math.random() * 1000000);
         xml += `<w:p><w:pPr><w:pStyle w:val="Heading${token.level}"/></w:pPr>`;
+        xml += `<w:bookmarkStart w:id="${bookmarkId}" w:name="${escapeXml(bookmark)}"/>`;
         xml += buildRuns(token.content);
+        xml += `<w:bookmarkEnd w:id="${bookmarkId}"/>`;
         xml += '</w:p>';
       } else if (token.type === 'paragraph') {
         xml += '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>';
@@ -607,6 +628,17 @@
     const { escapeXml } = window.DOCXTemplates;
     let xml = '';
     for (const run of runs) {
+      // Internal anchor link - use w:hyperlink with w:anchor
+      if (run.anchor) {
+        xml += `<w:hyperlink w:anchor="${escapeXml(run.anchor)}">`;
+        xml += '<w:r>';
+        xml += '<w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr>';
+        xml += `<w:t>${escapeXml(run.text)}</w:t>`;
+        xml += '</w:r>';
+        xml += '</w:hyperlink>';
+        continue;
+      }
+      
       xml += '<w:r>';
       if (run.bold || run.italic || run.code || run.link) {
         xml += '<w:rPr>';

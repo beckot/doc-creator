@@ -243,6 +243,15 @@ function getStyles() {
     </w:rPr>
   </w:style>
 
+  <!-- Hyperlink style: blue underlined for internal TOC links -->
+  <w:style w:type="character" w:styleId="Hyperlink">
+    <w:name w:val="Hyperlink"/>
+    <w:rPr>
+      <w:color w:val="0563C1"/>
+      <w:u w:val="single"/>
+    </w:rPr>
+  </w:style>
+
   <!-- Table Normal (base): 6pt vertical / 8pt horizontal padding for breathing room -->
   <w:style w:type="table" w:default="1" w:styleId="TableNormal">
     <w:name w:val="Normal Table"/>
