@@ -15,6 +15,85 @@ body {
   color: var(--fg);
 }
 
+/* Container spacing for desktop & mobile */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Text input area spacing */
+textarea, .editor, .input-area {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fafafa;
+  color: #000;
+}
+
+/* Ensure not edge-to-edge on small screens */
+.section,
+.controls,
+.panel {
+  margin: 12px 0;
+}
+
+/* Buttons: comfortable hit area for touch + desktop */
+.btn, button, .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px; /* touch-friendly */
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid #1f6feb;
+  background: #2f81f7;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.btn:hover, button:hover, .primary-button:hover {
+  background: #1f6feb;
+  border-color: #1f6feb;
+}
+
+.btn:active, button:active, .primary-button:active {
+  background: #1655c9;
+  border-color: #1655c9;
+}
+
+.btn:disabled, button:disabled, .primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Secondary button variant */
+.btn-secondary {
+  background: #f6f8fa;
+  color: #0a0a0a;
+  border-color: #d0d7de;
+}
+
+.btn-secondary:hover {
+  background: #eef2f6;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .container {
+    padding: 12px;
+  }
+  .btn, button, .primary-button {
+    width: 100%; /* stack and full-width for mobile */
+  }
+}
+
 header, footer { padding: 16px 20px; }
 header h1 { margin: 0 0 4px; font-size: 20px; }
 .subtitle { color: var(--muted); margin: 0; }

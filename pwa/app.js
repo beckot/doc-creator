@@ -525,12 +525,16 @@
             if (isHeader) {
               // Header row: #E0E0E0
               xml += '<w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/>';
-            } else if (i % 2 === 1) {
-              // Odd body rows (index 1, 3, 5...): #F3F3F3
-              xml += '<w:shd w:val="clear" w:color="auto" w:fill="F3F3F3"/>';
             } else {
-              // Even body rows (index 2, 4, 6...): #FFFFFF
-              xml += '<w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>';
+              // Stripe body rows starting with white for the first data row
+              const bodyIndex = i - 1; // 0-based index for data rows
+              if (bodyIndex % 2 === 0) {
+                // First, third, ... data rows: white
+                xml += '<w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>';
+              } else {
+                // Second, fourth, ... data rows: light gray
+                xml += '<w:shd w:val="clear" w:color="auto" w:fill="F3F3F3"/>';
+              }
             }
             xml += '</w:tcPr>';
             xml += '<w:p>';
