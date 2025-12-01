@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Markdown → Word (DOCX) Converter</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./styles.css" />
+    <meta name="theme-color" content="#202124" />
+  </head>
+  <body>
+    <header>
+      <h1>Markdown → Word (DOCX)</h1>
+      <p class="subtitle">Zero-install, offline-capable PWA. Word-only focus.</p>
+    </header>
+
+    <main>
+      <section class="controls">
+        <label for="markdownInput">Markdown / Text</label>
+        <textarea id="markdownInput" placeholder="Paste your markdown here..."></textarea>
+
+         <div class="toggles">
+          <label class="toggle">
+            <input type="checkbox" id="mermaidToggle" />
+            <span>Render Mermaid diagrams (optional)</span>
+          </label>
+        </div>
+
+        <div class="actions">
+            <button id="convertBtn" aria-label="Convert markdown to DOCX">Convert to DOCX</button>
+            <input type="file" id="fileInput" aria-label="Upload markdown files" multiple accept=".md,.markdown,.txt" />
+        </div>
+      </section>
+
+      <section id="downloadSection" class="hidden">
+        <div id="downloadLink" class="download-card"></div>
+      </section>
+
+      <details id="previewAccordion" class="accordion hidden">
+        <summary>Preview</summary>
+        <div id="previewContent" class="accordion-content"></div>
+      </details>
+
+      <details id="resultsAccordion" class="accordion hidden">
+        <summary>Conversion Details</summary>
+        <div id="resultSummary" class="accordion-content"></div>
+      </details>
+    </main>
+
+    <footer>
+      <small>PWA: offline after first load • No installs required</small>
+    </footer>
+
+    <script>
+      // Service worker registration with live-reload support
+      if ('serviceWorker' in navigator) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const devMode = urlParams.has('dev');
+        
+        if (!devMode) {
+          navigator.serviceWorker.register('./service-worker.js').then((reg) => {
+            // Check for updates every 5 seconds during development
+            setInterval(() => reg.update(), 5000);
+            
+            // Listen for new service worker waiting to activate
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New service worker available, show reload prompt
+                  if (confirm('New version available! Reload to update?')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+          });
+        } else {
+          console.log('Dev mode: Service worker disabled for live reload');
+        }
+      }
+    </script>
+    
+    <script src="./libs/jszip.min.js"></script>
+    <script src="./libs/mermaid.min.js"></script>
+    <script>
+      // Initialize Mermaid with error handling
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ 
+          startOnLoad: false,
+          theme: 'default',
+          securityLevel: 'loose'
+        });
+        console.log('Mermaid initialized successfully');
+      } else {
+        console.error('Mermaid library failed to load');
+      }
+    </script>
+    <script src="./docx-templates.js"></script>
+    <script src="./app.js"></script>
+  </body>
+  </html>

@@ -1,0 +1,1 @@
+```mermaid\nflowchart TD\n  A[Start] --> B{Decision};\n  B -->|Yes| C[Do thing];\n  B -->|No| D[Stop];\n```\n\n```python\nprint('hello')\n```

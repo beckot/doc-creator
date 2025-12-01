@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Markdown to DOCX Test Harness</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    table { border-collapse: collapse; margin-top:1rem; }
+    th, td { border:1px solid #ccc; padding:4px 6px; font-size:12px; }
+    .pass { color: green; }
+    .fail { color: red; }
+    .case { margin-bottom: 0.5rem; }
+    pre { background:#f5f5f5; padding:6px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Test Harness</h1>
+  <p>This runs parse + DOCX assembly and validates counts & XML fragments.</p>
+  <div id="summary"></div>
+  <div id="report"></div>
+
+  <script src="../libs/jszip.min.js"></script>
+  <script src="../libs/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad:false });</script>
+  <script src="../docx-templates.js"></script>
+  <script src="../app.js"></script>
+  <script src="./tests.js"></script>
+</body>
+</html>
