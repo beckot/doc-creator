@@ -15,7 +15,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./pwa
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+      
+      - name: Scan for API keys and tokens
+        run: |
+          echo "Scanning for potential secrets..."
+          # Search for common secret patterns
+          if grep -rE "(api[_-]?key|secret|password|token|private[_-]?key|credential)" --include="*.js" --include="*.html" --include="*.json" ./pwa/; then
+            echo "❌ WARNING: Potential secrets found in code"
+            exit 1
+          fi
+          echo "✅ No obvious secrets detected"
+      
+      - name: Check for sensitive file patterns
+        run: |
+          echo "Checking for sensitive files..."
+          if find ./pwa -name "*.env*" -o -name "*secret*" -o -name "*password*" -o -name "*.pem" -o -name "*.key" | grep -q .; then
+            echo "❌ WARNING: Sensitive files detected"
+            exit 1
+          fi
+          echo "✅ No sensitive files found"
+      
+      - name: Validate PWA has no backend calls
+        run: |
+          echo "Scanning for backend/server connections..."
+          if grep -rE "(fetch\(|XMLHttpRequest|\.post\(|\.get\(|axios)" --include="*.js" ./pwa/ | grep -vE "(localhost|127\.0\.0\.1|cdn\.|jsdelivr\.net)"; then
+            echo "⚠️  External API calls detected - verify these are intentional"
+          fi
+          echo "✅ Security scan complete"
+
   deploy:
+    needs: security-scan
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
