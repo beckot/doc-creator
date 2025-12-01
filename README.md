@@ -1,102 +1,97 @@
-# Document Converter
+# Markdown → Word (DOCX) Converter
 
-Convert Markdown/text files to beautifully formatted DOCX documents with Mermaid diagrams.
+**Zero-install, offline-capable Progressive Web App for converting Markdown to professionally formatted Word documents.**
+
+🌐 **Live App**: [https://beckot.github.io/doc-creator/](https://beckot.github.io/doc-creator/)
 
 ## Features
-- **Three input modes**: Paste markdown, upload files, or enter file paths
-- **Mermaid diagram support**: Automatic high-resolution rendering
-- **Professional styling**: Aptos font, proper spacing, formatted tables
-- **Web UI**: Simple browser interface
-- **CLI**: Command-line tool (original functionality)
-- **API**: Python API for programmatic use
 
-## Quick Start
+- ✅ **Zero installation** - Works in any modern browser
+- 📴 **Offline-capable** - PWA with full offline support after first load
+- 🎨 **Professional styling** - Aptos font, 1.5× line spacing, generous margins
+- 📊 **Mermaid diagrams** - Optional high-resolution diagram rendering
+- 📱 **Mobile & Desktop** - Responsive design for all devices
+- 🔒 **Privacy-first** - All processing happens in your browser (no data sent to servers)
+- ⚡ **Live updates** - Service worker auto-updates when new versions are available
 
-### Option 1: Web UI (New!)
-```bash
-python web_ui.py
-```
-Then open http://localhost:5000
+## What You Can Convert
 
-### Option 2: API (Programmatic)
-```python
-from doc_converter_api import DocumentConverterAPI
+- **Headings** (H1-H6)
+- **Bold**, *Italic*, `Code`, [Links](url)
+- Lists (numbered, bullets, nested)
+- Tables with header styling and banded rows
+- Code blocks with syntax highlighting
+- Blockquotes
+- Horizontal rules
+- **Mermaid diagrams** (flowcharts, sequence diagrams, ERDs, etc.)
 
-converter = DocumentConverterAPI()
+## Usage
 
-# Paste markdown
-result = converter.convert_content_to_docx(
-    content="# Hello\n\n**Bold** text",
-    output_path="output.docx"
-)
+### Online (Recommended)
+1. Visit [https://beckot.github.io/doc-creator/](https://beckot.github.io/doc-creator/)
+2. Paste your Markdown content
+3. Optionally enable Mermaid diagram rendering
+4. Click "Convert to DOCX"
+5. Download your formatted Word document
 
-# Or convert a file
-result = converter.convert_file_to_docx(
-    input_path="document.md",
-    output_path="output.docx"
-)
+### Install as PWA (Mobile/Desktop)
+1. Open the app in Chrome/Edge/Safari
+2. Look for "Install App" or "Add to Home Screen"
+3. Use offline anytime
 
-print(f"Success: {result['success']}")
-print(f"Output: {result['output_path']}")
-```
+### Local Development
+```powershell
+# Serve locally
+python -m http.server 8080 -d .\pwa
 
-### Option 3: CLI (Original)
-```bash
-python doc_combiner.py "path/to/file.md" -o "output.docx"
-```
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-python -m playwright install
+# Open http://localhost:8080/?dev (dev mode disables service worker for live reload)
 ```
 
-Optional (for faster Mermaid rendering):
-```bash
-npm install -g @mermaid-js/mermaid-cli
-```
+## Output Format
+
+Generated DOCX files include:
+
+- **Professional typography**: Aptos font family
+- **Generous spacing**: 1.5× line height, 8pt paragraph spacing
+- **Hierarchical headings**: H1 (18pt), H2 (16pt), H3 (13pt), H4-H6
+- **Styled tables**: Header shading, alternating row colors
+- **High-res images**: Mermaid diagrams rendered at 3× resolution
+- **Proper list formatting**: Hierarchical numbering (1., 1.1., 1.1.1.) and bullets
 
 ## Architecture
 
-- **doc_converter_api.py** - Core conversion API (new)
-- **web_ui.py** - Flask web interface (new)
-- **doc_combiner.py** - Original CLI tool
-- **templates/index.html** - Web UI (new)
+- `pwa/index.html` - Main PWA interface
+- `pwa/app.js` - Markdown parser & DOCX generator
+- `pwa/docx-templates.js` - OOXML templates for Word structure
+- `pwa/service-worker.js` - Offline caching & auto-updates
+- `pwa/styles.css` - Responsive UI styling
+- `.github/workflows/deploy.yml` - Automated GitHub Pages deployment
+- `.github/scripts/security-check.ps1` - Pre-deployment security scanning
 
-## Usage Examples
+## Security
 
-### Web UI
-1. **Paste Mode**: Copy markdown, click Convert
-2. **Upload Mode**: Choose .md/.txt file
-3. **Path Mode**: Enter file or folder path
+✅ **No secrets in repository** - Automated security scans on every push  
+✅ **Client-side only** - No backend server or data transmission  
+✅ **Open source** - Full code transparency  
 
-### API Examples
-```python
-# Convert multiple files
-converter.convert_multiple_files_to_docx(
-    file_paths=["doc1.md", "doc2.md"],
-    output_path="combined.docx"
-)
+See [`.github/SECURITY.md`](.github/SECURITY.md) for details.
 
-# Disable run folder (output directly)
-converter.convert_content_to_docx(
-    content="# Test",
-    output_path="test.docx",
-    create_run_folder=False
-)
-```
+## Browser Compatibility
 
-## Outputs
+- ✅ Chrome/Edge (Recommended)
+- ✅ Safari (iOS/macOS)
+- ✅ Firefox
+- ✅ Samsung Internet
 
-All conversions create:
-- **DOCX file**: Your formatted document
-- **Run folder** (optional): `run_YYYYMMDD_HHMMSS_name/`
-  - Output DOCX
-  - `images/` - Extracted Mermaid diagrams (PNG)
-  - `run_summary.txt` - Processing details
+Requires: Modern browser with ES6+ support, Web Workers, and Service Worker API.
 
-## Supported Features
+## Contributing
+
+Found a bug or have a feature request? Open an issue or submit a pull request!
+
+## License
+
+MIT License - See LICENSE file for details.
 
 ### Markdown
 - Headers (H1-H6)
