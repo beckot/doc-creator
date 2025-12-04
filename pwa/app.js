@@ -328,7 +328,21 @@
         paraLines.push(lines[i]);
         i++;
       }
-      tokens.push({ type: 'paragraph', content: parseInline(paraLines.join(' ')) });
+      
+      // Check if this looks like metadata fields (multiple lines with **Label:** pattern)
+      // If so, create separate paragraphs for each line to preserve formatting
+      const isMetadata = paraLines.length > 1 && 
+        paraLines.filter(l => /^\*\*[^*]+:\*\*/.test(l.trim())).length >= 2;
+      
+      if (isMetadata) {
+        // Each line becomes its own paragraph
+        for (const pLine of paraLines) {
+          tokens.push({ type: 'paragraph', content: parseInline(pLine) });
+        }
+      } else {
+        // Normal paragraph - join lines with space
+        tokens.push({ type: 'paragraph', content: parseInline(paraLines.join(' ')) });
+      }
     }
 
     headings = stats.headings;
@@ -432,29 +446,51 @@
     const { escapeXml } = window.DOCXTemplates;
     lang = (lang || '').toLowerCase();
     
-    // SQL keywords (blue)
-    const sqlKeywords = /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|OUTER|ON|AND|OR|NOT|IN|EXISTS|LIKE|BETWEEN|IS|NULL|GROUP BY|ORDER BY|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|ALTER|DROP|TABLE|INDEX|VIEW|DATABASE|PRIMARY|FOREIGN|KEY|CONSTRAINT|REFERENCES|AS|DISTINCT|UNION|ALL|CASE|WHEN|THEN|ELSE|END|COUNT|SUM|AVG|MIN|MAX|CAST|CONVERT)\b/gi;
+    // Professional IDE-style colors
+    const colors = {
+      keyword: '0000FF',      // Blue - keywords
+      string: '008000',       // Green - strings
+      comment: '008000',      // Green - comments (matching strings)
+      number: '098658',       // Teal - numbers
+      function: '795E26',     // Brown - function names
+      type: '267F99',         // Dark cyan - types/classes
+      operator: '000000'      // Black - operators
+    };
     
-    // Python keywords (blue)
-    const pythonKeywords = /\b(def|class|if|elif|else|for|while|break|continue|return|yield|import|from|as|try|except|finally|raise|with|lambda|pass|assert|global|nonlocal|del|True|False|None|and|or|not|in|is)\b/g;
+    // SQL keywords (comprehensive list)
+    const sqlKeywords = /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|OUTER|FULL|CROSS|ON|AND|OR|NOT|IN|EXISTS|LIKE|BETWEEN|IS|NULL|GROUP BY|ORDER BY|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|ALTER|DROP|TABLE|INDEX|VIEW|DATABASE|SCHEMA|PRIMARY|FOREIGN|KEY|CONSTRAINT|REFERENCES|AS|DISTINCT|UNION|ALL|CASE|WHEN|THEN|ELSE|END|COUNT|SUM|AVG|MIN|MAX|CAST|CONVERT|WITH|RECURSIVE|PARTITION BY|OVER|ROW_NUMBER|RANK|DENSE_RANK|BEGIN|COMMIT|ROLLBACK|TRANSACTION|DECLARE|VARCHAR|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|DATE|DATETIME|TIMESTAMP|TEXT|BLOB|BOOLEAN|IF|ELSIF|WHILE|LOOP|PROCEDURE|FUNCTION|RETURNS|TRIGGER|COLUMN|ADD|MODIFY|GRANT|REVOKE|TRUNCATE|COMMENT|STRING|DEFAULT)\b/gi;
     
-    // Strings (green) - match quotes
+    // Python keywords (comprehensive list)
+    const pythonKeywords = /\b(def|class|if|elif|else|for|while|break|continue|return|yield|import|from|as|try|except|finally|raise|with|lambda|pass|assert|global|nonlocal|del|True|False|None|and|or|not|in|is|async|await|match|case)\b/g;
+    
+    // Function/method calls - name followed by (
+    const functionPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g;
+    
+    // Numbers (integers, floats, hex)
+    const numberPattern = /\b(\d+\.?\d*|\.\d+|0x[0-9a-fA-F]+)\b/g;
+    
+    // Strings - single or double quotes
     const stringPattern = /(["'])((?:\\.|(?!\1).)*?)\1/g;
     
-    // Comments (gray) - SQL -- or Python #
-    const commentPattern = /(--|#).*$/gm;
+    // Comments - SQL (--) or Python (#)
+    const sqlCommentPattern = /--.*$/gm;
+    const pythonCommentPattern = /#.*$/gm;
     
     if (lang === 'sql') {
       return highlightWithPatterns(code, [
-        { pattern: commentPattern, color: '808080', tag: 'comment' },
-        { pattern: stringPattern, color: '008000', tag: 'string' },
-        { pattern: sqlKeywords, color: '0000FF', tag: 'keyword' }
+        { pattern: sqlCommentPattern, color: colors.comment, tag: 'comment' },
+        { pattern: stringPattern, color: colors.string, tag: 'string' },
+        { pattern: sqlKeywords, color: colors.keyword, tag: 'keyword' },
+        { pattern: functionPattern, color: colors.function, tag: 'function' },
+        { pattern: numberPattern, color: colors.number, tag: 'number' }
       ]);
     } else if (lang === 'python' || lang === 'py') {
       return highlightWithPatterns(code, [
-        { pattern: commentPattern, color: '808080', tag: 'comment' },
-        { pattern: stringPattern, color: '008000', tag: 'string' },
-        { pattern: pythonKeywords, color: '0000FF', tag: 'keyword' }
+        { pattern: pythonCommentPattern, color: colors.comment, tag: 'comment' },
+        { pattern: stringPattern, color: colors.string, tag: 'string' },
+        { pattern: pythonKeywords, color: colors.keyword, tag: 'keyword' },
+        { pattern: functionPattern, color: colors.function, tag: 'function' },
+        { pattern: numberPattern, color: colors.number, tag: 'number' }
       ]);
     }
     

@@ -199,19 +199,20 @@ function getStyles() {
     </w:rPr>
   </w:style>
 
-  <!-- Code Block: Consolas 10pt, background #F4F4F4, 0.5pt border #DDDDDD, 12pt spacing -->
+  <!-- Code Block: Consolas 10pt, background #F4F4F4, 0.5pt border #DDDDDD, generous padding -->
   <w:style w:type="paragraph" w:styleId="CodeBlock">
     <w:name w:val="Code Block"/>
     <w:basedOn w:val="Normal"/>
     <w:qFormat/>
     <w:pPr>
-      <w:spacing w:before="240" w:after="240" w:line="300" w:lineRule="auto"/>
-      <w:shd w:val="clear" w:color="auto" w:fill="F4F4F4"/>
+      <w:spacing w:before="120" w:after="120" w:line="300" w:lineRule="auto"/>
+      <w:ind w:left="120" w:right="120"/>
+      <w:shd w:val="clear" w:color="auto" w:fill="F8F8F8"/>
       <w:pBdr>
-        <w:top w:val="single" w:sz="4" w:space="0" w:color="DDDDDD"/>
-        <w:left w:val="single" w:sz="4" w:space="0" w:color="DDDDDD"/>
-        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="DDDDDD"/>
-        <w:right w:val="single" w:sz="4" w:space="0" w:color="DDDDDD"/>
+        <w:top w:val="single" w:sz="4" w:space="4" w:color="DDDDDD"/>
+        <w:left w:val="single" w:sz="4" w:space="4" w:color="DDDDDD"/>
+        <w:bottom w:val="single" w:sz="4" w:space="4" w:color="DDDDDD"/>
+        <w:right w:val="single" w:sz="4" w:space="4" w:color="DDDDDD"/>
       </w:pBdr>
     </w:pPr>
     <w:rPr>
