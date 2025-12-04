@@ -84,6 +84,28 @@ textarea, .editor, .input-area {
   background: #eef2f6;
 }
 
+/* Version indicator */
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.version {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: 'Courier New', monospace;
+  padding: 2px 6px;
+  background: var(--card);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
 /* Responsive tweaks */
 @media (max-width: 600px) {
   .container {
