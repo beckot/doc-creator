@@ -427,6 +427,95 @@
     return runs;
   }
 
+  // Syntax highlighting for code blocks
+  function highlightCode(code, lang) {
+    const { escapeXml } = window.DOCXTemplates;
+    lang = (lang || '').toLowerCase();
+    
+    // SQL keywords (blue)
+    const sqlKeywords = /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|OUTER|ON|AND|OR|NOT|IN|EXISTS|LIKE|BETWEEN|IS|NULL|GROUP BY|ORDER BY|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|ALTER|DROP|TABLE|INDEX|VIEW|DATABASE|PRIMARY|FOREIGN|KEY|CONSTRAINT|REFERENCES|AS|DISTINCT|UNION|ALL|CASE|WHEN|THEN|ELSE|END|COUNT|SUM|AVG|MIN|MAX|CAST|CONVERT)\b/gi;
+    
+    // Python keywords (blue)
+    const pythonKeywords = /\b(def|class|if|elif|else|for|while|break|continue|return|yield|import|from|as|try|except|finally|raise|with|lambda|pass|assert|global|nonlocal|del|True|False|None|and|or|not|in|is)\b/g;
+    
+    // Strings (green) - match quotes
+    const stringPattern = /(["'])((?:\\.|(?!\1).)*?)\1/g;
+    
+    // Comments (gray) - SQL -- or Python #
+    const commentPattern = /(--|#).*$/gm;
+    
+    if (lang === 'sql') {
+      return highlightWithPatterns(code, [
+        { pattern: commentPattern, color: '808080', tag: 'comment' },
+        { pattern: stringPattern, color: '008000', tag: 'string' },
+        { pattern: sqlKeywords, color: '0000FF', tag: 'keyword' }
+      ]);
+    } else if (lang === 'python' || lang === 'py') {
+      return highlightWithPatterns(code, [
+        { pattern: commentPattern, color: '808080', tag: 'comment' },
+        { pattern: stringPattern, color: '008000', tag: 'string' },
+        { pattern: pythonKeywords, color: '0000FF', tag: 'keyword' }
+      ]);
+    }
+    
+    // No highlighting for other languages
+    return [{ text: code }];
+  }
+  
+  function highlightWithPatterns(code, patterns) {
+    const { escapeXml } = window.DOCXTemplates;
+    const tokens = [];
+    let lastIndex = 0;
+    const matches = [];
+    
+    // Collect all matches with their positions
+    patterns.forEach((p, pIdx) => {
+      const regex = new RegExp(p.pattern.source, p.pattern.flags);
+      let match;
+      while ((match = regex.exec(code)) !== null) {
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0],
+          color: p.color,
+          priority: pIdx // Earlier patterns have higher priority
+        });
+      }
+    });
+    
+    // Sort by position, then by priority (for overlaps)
+    matches.sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.end !== b.end) return b.end - a.end; // Longer match first
+      return a.priority - b.priority;
+    });
+    
+    // Remove overlapping matches (keep higher priority)
+    const filtered = [];
+    let lastEnd = 0;
+    for (const m of matches) {
+      if (m.start >= lastEnd) {
+        filtered.push(m);
+        lastEnd = m.end;
+      }
+    }
+    
+    // Build tokens with plain text and highlighted segments
+    filtered.forEach(m => {
+      if (m.start > lastIndex) {
+        tokens.push({ text: code.substring(lastIndex, m.start) });
+      }
+      tokens.push({ text: m.text, color: m.color });
+      lastIndex = m.end;
+    });
+    
+    if (lastIndex < code.length) {
+      tokens.push({ text: code.substring(lastIndex) });
+    }
+    
+    return tokens.length > 0 ? tokens : [{ text: code }];
+  }
+
   // Generate bookmark name from heading text (slug-style)
   function generateBookmark(text) {
     // Extract plain text from runs if needed
@@ -495,7 +584,20 @@
         const lines = token.content.split('\n');
         for (const line of lines) {
           xml += '<w:p><w:pPr><w:pStyle w:val="CodeBlock"/></w:pPr>';
-          xml += `<w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r>`;
+          // Apply syntax highlighting if language is specified
+          const highlighted = highlightCode(line, token.lang);
+          for (const segment of highlighted) {
+            xml += '<w:r>';
+            xml += '<w:rPr>';
+            xml += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>';
+            xml += '<w:sz w:val="20"/>';
+            if (segment.color) {
+              xml += `<w:color w:val="${segment.color}"/>`;
+            }
+            xml += '</w:rPr>';
+            xml += `<w:t xml:space="preserve">${escapeXml(segment.text)}</w:t>`;
+            xml += '</w:r>';
+          }
           xml += '</w:p>';
         }
       } else if (token.type === 'list') {
