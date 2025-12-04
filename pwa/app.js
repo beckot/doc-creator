@@ -253,8 +253,11 @@
               if (items.length > 0) {
                 const lastItem = items[items.length - 1];
                 const continuationText = line.trim();
-                // Add a space and then the continuation text
-                lastItem.runs.push({ text: ' ' + continuationText });
+                // Parse the continuation text for formatting and merge the runs
+                const continuationRuns = parseInline(continuationText);
+                // Add space before continuation
+                lastItem.runs.push({ text: ' ' });
+                lastItem.runs.push(...continuationRuns);
               }
               i++;
               continue;
@@ -565,6 +568,19 @@
             // Build runs directly with header bold applied to each run
             if (cell.length > 0) {
               for (const run of cell) {
+                // Handle internal anchor links in tables
+                if (run.anchor) {
+                  xml += `<w:hyperlink w:anchor="${escapeXml(run.anchor)}">`;
+                  xml += '<w:r>';
+                  xml += '<w:rPr><w:rStyle w:val="Hyperlink"/>';
+                  if (isHeader) xml += '<w:b/>';
+                  xml += '</w:rPr>';
+                  xml += `<w:t>${escapeXml(run.text)}</w:t>`;
+                  xml += '</w:r>';
+                  xml += '</w:hyperlink>';
+                  continue;
+                }
+                
                 xml += '<w:r>';
                 if (isHeader || run.bold || run.italic || run.code || run.link) {
                   xml += '<w:rPr>';
