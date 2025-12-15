@@ -42,9 +42,11 @@
   });
 
   // Update preview when Mermaid toggle changes
-  mermaidToggle.addEventListener('change', () => {
-    updatePreview();
-  });
+  if (mermaidToggle) {
+    mermaidToggle.addEventListener('change', () => {
+      updatePreview();
+    });
+  }
 
   let currentMode = 'docx';
   initModeControls();
