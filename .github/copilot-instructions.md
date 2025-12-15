@@ -11,6 +11,10 @@ All AI agents (Copilot, ChatGPT, Codex, automation scripts) working on this repo
   ```bash
   trufflehog filesystem --fail --only-verified --json --exclude-paths .trufflehogignore .
   ```
+- Install toolchain if missing:
+  ```bash
+  pip install "git+https://github.com/trufflesecurity/trufflehog@v3.0.5"
+  ```
 
 ## Exit codes
 - `0`: No verified secrets found (proceed).

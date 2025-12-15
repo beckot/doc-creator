@@ -10,6 +10,7 @@ HEAD_REF=${2:-HEAD}
 
 if ! command -v trufflehog >/dev/null 2>&1; then
   echo "trufflehog is not installed. Install with: pip install 'trufflehog>=3.0.5,<4.0'" >&2
+  echo "trufflehog is not installed. Install with: pip install 'git+https://github.com/trufflesecurity/trufflehog@v3.0.5'" >&2
   echo "trufflehog is not installed. Install with: pip install 'trufflehog==3.79.0'" >&2
   exit 2
 fi
