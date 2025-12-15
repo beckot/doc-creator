@@ -1,0 +1,36 @@
+# Pre-commit configuration enforcing secret scanning and basic hygiene.
+# Install pre-commit via: pip install pre-commit
+# Then enable hooks: pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/trufflesecurity/trufflehog
+    # Pinned to a widely available 3.x release; update alongside the CI workflow version.
+    rev: v3.0.5
+    hooks:
+      - id: trufflehog
+        name: trufflehog-filesystem-scan
+        entry: trufflehog
+        args:
+          - filesystem
+          - --fail
+          - --only-verified
+          - --json
+          - --exclude-paths
+          - .trufflehogignore
+          - .
+        language: python
+        additional_dependencies: []
+        stages: [commit]
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: trufflehog-diff-against-main
+        name: trufflehog-diff-against-main
+        entry: scripts/trufflehog_diff.sh
+        language: script
+        stages: [commit]
+        pass_filenames: false
