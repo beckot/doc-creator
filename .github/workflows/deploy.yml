@@ -31,7 +31,8 @@ jobs:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
-          extra_args: --only-verified
+          # Allowlist minified vendor bundles that trigger false positives (e.g., Mermaid)
+          extra_args: --only-verified --exclude-paths .trufflehogignore
         continue-on-error: true
 
       - name: Scan for API keys and tokens

@@ -7,6 +7,7 @@ window.addEventListener('load', () => {
     { name:'blockquote', file:'cases/blockquote.md', expect:{ headings:0, tables:0, blockQuotes:1, codeBlocks:0 }, golden:{ blockQuoteParas:2 } },
     { name:'lists-nested', file:'cases/lists-nested.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:0 }, golden:{ listParas:7, listLevels:{ lvl0:4, lvl1:2, lvl2:1 } } },
     { name:'code-mermaid', file:'cases/code-mermaid.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
+    { name:'mermaid-claimed-none', file:'cases/mermaid-claimed-none.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
     { name:'large', file:'cases/large.md', expect:{ headings:4, tables:1, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, tables:1, headingStyles:4 } }
   ];
 
