@@ -3,6 +3,8 @@ name: Deploy PWA to GitHub Pages
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -23,20 +25,38 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Select TruffleHog base ref
+        id: trufflehog-base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base_sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            # On pushes, scan the diff against the previous commit to avoid HEAD==BASE failures.
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              echo "base_sha=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+            else
+              echo "base_sha=" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Scan for secrets with TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --only-verified
+          base: ${{ steps.trufflehog-base.outputs.base_sha }}
+          head: ${{ github.sha }}
+          # Allowlist minified vendor bundles that trigger false positives (e.g., Mermaid)
+          extra_args: --only-verified --exclude-paths .trufflehogignore
         continue-on-error: true
-      
+
       - name: Scan for API keys and tokens
         run: |
           echo "Scanning for potential secrets..."
-          # Search for common secret patterns (excluding variable names like 'token' or 'tokens')
-          if grep -rE "(api[_-]?key\s*[:=]|secret\s*[:=]|password\s*[:=]|['\"]token['\"]?\s*[:=]|private[_-]?key\s*[:=]|credential\s*[:=])" --include="*.js" --include="*.html" --include="*.json" ./pwa/ 2>/dev/null; then
+          # Search for common secret patterns (excluding variable names like 'token' or 'tokens').
+          # Skip minified third-party libraries (e.g., Mermaid bundle) that trigger false positives.
+          # Known false positive: pwa/libs/mermaid.min.js (minified Mermaid vendor bundle)
+          if grep -rE "(api[_-]?key\s*[:=]|secret\s*[:=]|password\s*[:=]|['\"]token['\"]?\s*[:=]|private[_-]?key\s*[:=]|credential\s*[:=])" \
+            --include="*.js" --include="*.html" --include="*.json" --exclude-dir="libs" ./pwa/ 2>/dev/null; then
             echo "❌ WARNING: Potential secrets found in code"
             exit 1
           fi
@@ -61,6 +81,7 @@ jobs:
 
   deploy:
     needs: security-scan
+    if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
