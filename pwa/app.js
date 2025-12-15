@@ -1211,8 +1211,13 @@
       extractSvgDimensions,
       calculatePngDimensions,
       DEFAULT_PNG_WIDTH,
-    MAX_PNG_DIMENSION,
-    extractMermaidSource
+      MAX_PNG_DIMENSION,
+      extractMermaidSource
+    }
+  };
+
+  function showPngResult({ name, blob, width, height }) {
+    const size = blob.size;
     const url = URL.createObjectURL(blob);
 
     downloadLink.innerHTML = `
