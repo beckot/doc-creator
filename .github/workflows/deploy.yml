@@ -3,6 +3,8 @@ name: Deploy PWA to GitHub Pages
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -31,12 +33,15 @@ jobs:
           head: HEAD
           extra_args: --only-verified
         continue-on-error: true
-      
+
       - name: Scan for API keys and tokens
         run: |
           echo "Scanning for potential secrets..."
-          # Search for common secret patterns (excluding variable names like 'token' or 'tokens')
-          if grep -rE "(api[_-]?key\s*[:=]|secret\s*[:=]|password\s*[:=]|['\"]token['\"]?\s*[:=]|private[_-]?key\s*[:=]|credential\s*[:=])" --include="*.js" --include="*.html" --include="*.json" ./pwa/ 2>/dev/null; then
+          # Search for common secret patterns (excluding variable names like 'token' or 'tokens').
+          # Skip minified third-party libraries (e.g., Mermaid bundle) that trigger false positives.
+          # Known false positive: pwa/libs/mermaid.min.js (minified Mermaid vendor bundle)
+          if grep -rE "(api[_-]?key\s*[:=]|secret\s*[:=]|password\s*[:=]|['\"]token['\"]?\s*[:=]|private[_-]?key\s*[:=]|credential\s*[:=])" \
+            --include="*.js" --include="*.html" --include="*.json" --exclude-dir="libs" ./pwa/ 2>/dev/null; then
             echo "❌ WARNING: Potential secrets found in code"
             exit 1
           fi
@@ -61,6 +66,7 @@ jobs:
 
   deploy:
     needs: security-scan
+    if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
