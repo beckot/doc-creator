@@ -13,7 +13,10 @@ All AI agents (Copilot, ChatGPT, Codex, automation scripts) working on this repo
   ```
 - Install toolchain if missing:
   ```bash
-  pip install "git+https://github.com/trufflesecurity/trufflehog@v3.0.5"
+  # macOS/Linux:
+  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+  # Windows (use released binary or WSL):
+  # Download from https://github.com/trufflesecurity/trufflehog/releases
   ```
 
 ## Exit codes
