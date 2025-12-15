@@ -10,6 +10,8 @@ repos:
   - repo: https://github.com/trufflesecurity/trufflehog
     # Pinned to a widely available 3.x release; update alongside the CI workflow version.
     rev: v3.0.5
+    # Pinned version for reproducibility (latest stable known at end of 2025)
+    rev: v3.79.0
     hooks:
       - id: trufflehog
         name: trufflehog-filesystem-scan
