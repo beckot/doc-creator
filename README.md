@@ -70,9 +70,10 @@ Generated DOCX files include:
 
 ## Security
 
-✅ **No secrets in repository** - Automated security scans on every push  
-✅ **Client-side only** - No backend server or data transmission  
-✅ **Open source** - Full code transparency  
+✅ **No secrets in repository** - Automated security scans on every push
+✅ **TruffleHog enforced** - Pre-commit + CI scans with vendor allowlists in `.trufflehogignore` (run `./scripts/trufflehog_diff.sh origin/main HEAD` locally)
+✅ **Client-side only** - No backend server or data transmission
+✅ **Open source** - Full code transparency
 
 See [`.github/SECURITY.md`](.github/SECURITY.md) for details.
 
