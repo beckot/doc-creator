@@ -11,9 +11,16 @@
   const previewContent = document.getElementById('previewContent');
   const resultsAccordion = document.getElementById('resultsAccordion');
   const resultSummary = document.getElementById('resultSummary');
+  const modeInputs = document.querySelectorAll('input[name="outputMode"]');
+  const pngOptions = document.getElementById('pngOptions');
+  const pngWidthInput = document.getElementById('pngWidthInput');
 
   const DRAFT_KEY = 'draft_markdown_v1';
   const HISTORY_KEY = 'conversion_history_v1';
+  const MODE_KEY = 'output_mode_v1';
+  const PNG_WIDTH_KEY = 'png_width_v1';
+  const DEFAULT_PNG_WIDTH = 3000;
+  const MAX_PNG_DIMENSION = 10000;
 
   // Service worker registration
   if ('serviceWorker' in navigator) {
@@ -38,6 +45,10 @@
   mermaidToggle.addEventListener('change', () => {
     updatePreview();
   });
+
+  let currentMode = 'docx';
+  initModeControls();
+  initPngWidthControl();
 
   // Preview rendering function
   async function updatePreview() {
@@ -108,6 +119,73 @@
     mdInput.value = parts.join('\n\n');
     mdInput.dispatchEvent(new Event('input'));
   });
+
+  function initModeControls() {
+    let saved = 'docx';
+    try {
+      const stored = localStorage.getItem(MODE_KEY);
+      if (stored === 'png' || stored === 'docx') saved = stored;
+    } catch {}
+    setMode(saved, false);
+    modeInputs.forEach(input => {
+      if (input.value === saved) input.checked = true;
+      input.addEventListener('change', () => {
+        if (input.checked) setMode(input.value);
+      });
+    });
+  }
+
+  function initPngWidthControl() {
+    if (!pngWidthInput) return;
+    let savedWidth = DEFAULT_PNG_WIDTH;
+    try {
+      const stored = parseInt(localStorage.getItem(PNG_WIDTH_KEY), 10);
+      if (!isNaN(stored)) savedWidth = normalizePngWidth(stored);
+    } catch {}
+    pngWidthInput.value = savedWidth;
+    pngWidthInput.addEventListener('change', () => {
+      const normalized = normalizePngWidth(pngWidthInput.value);
+      pngWidthInput.value = normalized;
+      try { localStorage.setItem(PNG_WIDTH_KEY, normalized); } catch {}
+    });
+  }
+
+  function setMode(mode, persist = true) {
+    currentMode = mode === 'png' ? 'png' : 'docx';
+    modeInputs.forEach(input => {
+      input.checked = input.value === currentMode;
+    });
+    if (persist) {
+      try { localStorage.setItem(MODE_KEY, currentMode); } catch {}
+    }
+    if (pngOptions) {
+      pngOptions.classList.toggle('hidden', currentMode !== 'png');
+    }
+    if (convertBtn) {
+      if (currentMode === 'png') {
+        convertBtn.textContent = 'Export Mermaid PNG';
+        convertBtn.setAttribute('aria-label', 'Export mermaid diagram as PNG');
+      } else {
+        convertBtn.textContent = 'Convert to DOCX';
+        convertBtn.setAttribute('aria-label', 'Convert markdown to DOCX');
+      }
+    }
+    if (downloadSection) downloadSection.classList.add('hidden');
+    if (resultsAccordion) resultsAccordion.classList.add('hidden');
+  }
+
+  function normalizePngWidth(value) {
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed) || parsed < 1) return DEFAULT_PNG_WIDTH;
+    return Math.min(MAX_PNG_DIMENSION, Math.max(1, parsed));
+  }
+
+  function getTargetPngWidth() {
+    if (!pngWidthInput) return DEFAULT_PNG_WIDTH;
+    const normalized = normalizePngWidth(pngWidthInput.value || DEFAULT_PNG_WIDTH);
+    try { localStorage.setItem(PNG_WIDTH_KEY, normalized); } catch {}
+    return normalized;
+  }
 
   // Markdown parser: produces IR with tokens
   function parseMarkdown(text) {
@@ -980,9 +1058,123 @@
     return { name, blob };
   }
 
+
+
+  function extractSvgDimensions(svgElement) {
+    let svgWidth = parseFloat(svgElement.getAttribute('width'));
+    let svgHeight = parseFloat(svgElement.getAttribute('height'));
+
+    if (!svgWidth || !svgHeight || isNaN(svgWidth) || isNaN(svgHeight)) {
+      const viewBox = svgElement.getAttribute('viewBox');
+      if (viewBox) {
+        const parts = viewBox.split(/\s+/);
+        if (parts.length === 4) {
+          svgWidth = parseFloat(parts[2]);
+          svgHeight = parseFloat(parts[3]);
+        }
+      }
+    }
+
+    if (!svgWidth || isNaN(svgWidth)) svgWidth = 800;
+    if (!svgHeight || isNaN(svgHeight)) svgHeight = 400;
+
+    return { svgWidth, svgHeight };
+  }
+
+  function calculatePngDimensions(dimensions, targetWidth = DEFAULT_PNG_WIDTH, maxDimension = MAX_PNG_DIMENSION) {
+    const baseWidth = dimensions && !isNaN(dimensions.svgWidth) && dimensions.svgWidth > 0 ? dimensions.svgWidth : 800;
+    const baseHeight = dimensions && !isNaN(dimensions.svgHeight) && dimensions.svgHeight > 0 ? dimensions.svgHeight : 400;
+    const aspectRatio = baseHeight / baseWidth;
+
+    let width = normalizePngWidth(targetWidth || DEFAULT_PNG_WIDTH);
+    width = Math.min(width, maxDimension);
+    let height = Math.round(width * aspectRatio);
+
+    if (height > maxDimension) {
+      height = maxDimension;
+      width = Math.round(height / aspectRatio);
+    }
+
+    return { width, height, aspectRatio };
+  }
+
+  function extractMermaidSource(tokens, rawText) {
+    const mermaidTokens = tokens.filter(t => t.type === 'mermaid');
+    if (mermaidTokens.length) return mermaidTokens[0].content;
+
+    const raw = (rawText || '').trim();
+    if (!raw) return '';
+
+    // Normalize common pasted line breaks (HTML <br> and encoded variants)
+    const normalized = raw
+      .replace(/\r\n/g, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+      .trim();
+
+    // Heuristic: treat plain Mermaid definitions (no code fences) as valid sources
+    const mermaidStarters = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|journey|timeline|pie|quadrantChart)\b/i;
+    if (mermaidStarters.test(normalized)) return normalized;
+
+    return '';
+  }
+
+  async function buildMermaidPng(tokens, targetWidthPx, rawText) {
+    if (typeof mermaid === 'undefined') throw new Error('Mermaid library failed to load.');
+    const mermaidSource = extractMermaidSource(tokens, rawText);
+    if (!mermaidSource) {
+      throw new Error('No Mermaid diagram found. Add a ```mermaid``` block or paste a raw Mermaid definition when using PNG mode.');
+    }
+
+    const cleanedSource = sanitizeMermaidSource(mermaidSource);
+    const renderId = 'mermaid-png-' + Math.random().toString(36).slice(2);
+    const svg = await mermaid.render(renderId, cleanedSource);
+
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svg.svg, 'image/svg+xml');
+    const svgElement = svgDoc.documentElement;
+
+    svgElement.querySelectorAll('*').forEach(el => {
+      if (el.hasAttribute('href') && el.getAttribute('href').startsWith('http')) {
+        el.removeAttribute('href');
+      }
+      if (el.hasAttribute('xlink:href') && el.getAttribute('xlink:href').startsWith('http')) {
+        el.removeAttribute('xlink:href');
+      }
+    });
+
+    const dimensions = extractSvgDimensions(svgElement);
+    const { width, height } = calculatePngDimensions(dimensions, targetWidthPx);
+
+    const serializer = new XMLSerializer();
+    const cleanedSvg = serializer.serializeToString(svgElement);
+    const svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(cleanedSvg)));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = svgDataUri;
+    });
+
+    ctx.drawImage(img, 0, 0, width, height);
+    const pngBlob = await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('PNG export failed.')), 'image/png'));
+    const name = 'mermaid.png';
+    return { name, blob: pngBlob, width, height };
+  }
+
   // Sanitize mermaid source (basic) - strip script tags & on* attributes
   function sanitizeMermaidSource(src) {
     let s = src || '';
+    // Normalize common line-break placeholders into real newlines
+    s = s.replace(/<br\s*\/?>/gi, '\n').replace(/&lt;br\s*\/?&gt;/gi, '\n');
     // Remove <script>...</script>
     s = s.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
     // Remove on* event handler attributes (if any injected)
@@ -1009,12 +1201,60 @@
   window.DocConverter = {
     parseMarkdown,
     buildDocxBlob,
+    buildMermaidPng,
     _internals: {
       buildDocumentXml,
       sanitizeRawMarkdown,
-      sanitizeMermaidSource
+      sanitizeMermaidSource,
+      extractSvgDimensions,
+      calculatePngDimensions,
+      DEFAULT_PNG_WIDTH,
+      MAX_PNG_DIMENSION,
+      extractMermaidSource
     }
   };
+
+  function showPngResult({ name, blob, width, height }) {
+    const size = blob.size;
+    const url = URL.createObjectURL(blob);
+
+    downloadLink.innerHTML = `
+      <h2 style="margin: 0 0 12px; color: var(--fg);">✓ PNG Ready</h2>
+      <a href="${url}" download="${name}">Download ${name}</a>
+      <div class="download-info">
+        <div>${(size / 1024).toFixed(1)} KB • ${width}×${height} px</div>
+      </div>
+    `;
+    downloadSection.classList.remove('hidden');
+
+    resultSummary.innerHTML = `
+      <div class="summary-row">
+        <strong>File:</strong>
+        <code>${name}</code>
+        <span>(${(size / 1024).toFixed(1)} KB)</span>
+      </div>
+      <div class="summary-row">
+        <span>Dimensions: ${width} × ${height} px</span>
+      </div>
+      <div class="summary-actions">
+        <button class="link-btn" id="copyNameBtn">Copy file name</button>
+      </div>
+    `;
+    resultsAccordion.classList.remove('hidden');
+
+    const copyBtn = document.getElementById('copyNameBtn');
+    copyBtn.onclick = async () => {
+      try { await navigator.clipboard.writeText(name); copyBtn.textContent = 'Copied ✓'; } catch {}
+    };
+
+    try {
+      const entry = { id: crypto.randomUUID?.() || String(Date.now()), timestamp: Date.now(), fileName: name, sizeBytes: size, mode: 'png', width, height };
+      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      hist.unshift(entry);
+      while (hist.length > 5) hist.pop();
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+    } catch {}
+  }
 
   function showResult({ name, blob }, counts) {
     const size = blob.size;
@@ -1067,15 +1307,22 @@
   convertBtn.addEventListener('click', async () => {
     const text = sanitizeRawMarkdown(mdInput.value.trim());
     if (!text) return;
-    
+
     // Show loading state
     convertBtn.disabled = true;
     convertBtn.classList.add('loading');
     const originalText = convertBtn.textContent;
-    convertBtn.textContent = 'Converting...';
-    
+    convertBtn.textContent = currentMode === 'png' ? 'Rendering...' : 'Converting...';
+
     try {
       const { tokens, counts } = parseMarkdown(text);
+      if (currentMode === 'png') {
+        const targetWidth = getTargetPngWidth();
+        const pngResult = await buildMermaidPng(tokens, targetWidth, text);
+        showPngResult(pngResult);
+        return;
+      }
+
       // Respect Mermaid toggle for DOCX export
       const mermaidEnabled = mermaidToggle && mermaidToggle.checked;
       if (!mermaidEnabled) {
