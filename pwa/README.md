@@ -11,6 +11,7 @@ Zero-install Progressive Web App that converts Markdown to styled Microsoft Word
 - **Tables**: Full table support with banded rows, header shading, and consistent column widths
 - **Nested Lists**: Up to 3 levels of indentation (bullets & numbered)
 - **Mermaid Diagrams**: Renders flowcharts, sequence diagrams, ERDs to embedded PNG images
+- **Mermaid PNG Export**: Dedicated mode to download diagrams as high-res PNG (custom width up to 10,000px, aspect ratio preserved)
 - **Inline Formatting**: Bold, italic, code, and links preserved
 - **Multi-File Concatenation**: Upload multiple `.md`/`.txt` files (alphabetically merged)
 - **Samsung Galaxy S25 Optimized**: Tested for <3s conversion on mobile
@@ -68,14 +69,17 @@ Zero-install Progressive Web App that converts Markdown to styled Microsoft Word
    - Textarea: Direct paste
    - File picker: Upload one or multiple `.md`/`.txt` files
 
-2. **Convert**
-   - Click "Convert to DOCX"
-   - Download appears with filename and size
+2. **Choose output mode**
+   - **DOCX (default)**: Standard Word conversion path
+   - **Mermaid PNG**: Exports the first Mermaid diagram as a PNG; set the desired width (1–10,000px) and the height will adjust automatically
 
-3. **Open in Word**
-   - Desktop: Double-click `.docx`
-   - Android: Open with Microsoft Word app
-   - Verify styles, tables, diagrams render correctly
+3. **Convert / Export**
+   - Click the primary button (label adapts to the selected mode)
+   - Download appears with filename, size, and (for PNG) pixel dimensions
+
+4. **Open in Word or image viewer**
+   - DOCX: Desktop Word or Android Word app
+   - PNG: Any image viewer or embed in docs/slides
 
 ## Architecture
 

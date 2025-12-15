@@ -11,12 +11,26 @@
   <body>
     <div class="container">
     <header>
-      <h1>Markdown → Word (DOCX)</h1>
-      <p class="subtitle">Zero-install, offline-capable PWA. Word-only focus.</p>
+      <h1>Markdown → DOCX or Mermaid PNG</h1>
+      <p class="subtitle">Zero-install, offline-capable PWA. Word + massive Mermaid exports.</p>
     </header>
 
     <main>
       <section class="controls">
+        <div class="mode-row">
+          <label>Output mode</label>
+          <div class="mode-switch" role="group" aria-label="Output format">
+            <label class="mode-chip">
+              <input type="radio" name="outputMode" value="docx" checked />
+              <span>DOCX (Word)</span>
+            </label>
+            <label class="mode-chip">
+              <input type="radio" name="outputMode" value="png" />
+              <span>Mermaid PNG</span>
+            </label>
+          </div>
+        </div>
+
         <label for="markdownInput">Markdown / Text</label>
         <textarea id="markdownInput" class="editor" placeholder="Paste your markdown here..."></textarea>
 
@@ -27,8 +41,16 @@
           </label>
         </div>
 
+        <div id="pngOptions" class="png-options hidden">
+          <label for="pngWidthInput">PNG width (px)</label>
+          <div class="inline-input">
+            <input type="number" id="pngWidthInput" min="1" max="10000" step="50" placeholder="3000" />
+            <span class="muted-text">Aspect ratio preserved</span>
+          </div>
+        </div>
+
         <div class="actions">
-          <button id="convertBtn" class="primary-button" aria-label="Convert markdown to DOCX">Convert to DOCX</button>
+          <button id="convertBtn" class="primary-button" aria-label="Convert markdown">Convert to DOCX</button>
           <input type="file" id="fileInput" class="btn-secondary" aria-label="Upload markdown files" multiple accept=".md,.markdown,.txt" />
         </div>
       </section>
@@ -50,7 +72,7 @@
 
     <footer>
       <small>PWA: offline after first load • No installs required</small>
-      <span class="version">v1.5.0</span>
+      <span class="version">v1.6.0</span>
     </footer>
     </div>
 
@@ -59,12 +81,12 @@
       if ('serviceWorker' in navigator) {
         const urlParams = new URLSearchParams(window.location.search);
         const devMode = urlParams.has('dev');
-        
+
         if (!devMode) {
           navigator.serviceWorker.register('./service-worker.js').then((reg) => {
             // Check for updates every 5 seconds during development
             setInterval(() => reg.update(), 5000);
-            
+
             // Listen for new service worker waiting to activate
             reg.addEventListener('updatefound', () => {
               const newWorker = reg.installing;
@@ -84,13 +106,13 @@
         }
       }
     </script>
-    
+
     <script src="./libs/jszip.min.js"></script>
     <script src="./libs/mermaid.min.js"></script>
     <script>
       // Initialize Mermaid with error handling
       if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({ 
+        mermaid.initialize({
           startOnLoad: false,
           theme: 'default',
           securityLevel: 'loose'
