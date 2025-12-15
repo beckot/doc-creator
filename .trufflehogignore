@@ -2,3 +2,4 @@
 pwa/libs/mermaid.min.js
 # Allowlist all vendor bundles under pwa/libs if needed for future minified updates
 pwa/libs/.*\.min\.js
+# Add additional vetted third-party artifacts here only after review; never exclude first-party code.
