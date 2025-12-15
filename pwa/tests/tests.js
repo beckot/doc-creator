@@ -53,10 +53,46 @@ window.addEventListener('load', () => {
     }
   }
 
+  function testPngDimensionScaling(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 800, svgHeight: 400 }, 6000, DocConverter._internals.MAX_PNG_DIMENSION);
+      const pass = dims.width === 6000 && dims.height === 3000;
+      return { name: 'png-dimension-scaling', pass, message: pass ? '6000px → 3000px preserves aspect' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-scaling', pass: false, message: e.message };
+    }
+  }
+
+  function testPngDimensionClamp(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 200, svgHeight: 100 }, 20000, DocConverter._internals.MAX_PNG_DIMENSION);
+      const pass = dims.width === 10000 && dims.height === 5000;
+      return { name: 'png-dimension-clamp', pass, message: pass ? 'Clamped to 10k px max' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-clamp', pass: false, message: e.message };
+    }
+  }
+
+  function testPngDimensionFallback(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 0, svgHeight: 0 }, 500);
+      const pass = dims.width === 500 && dims.height === 250;
+      return { name: 'png-dimension-fallback', pass, message: pass ? 'Fallback dimensions used' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-fallback', pass: false, message: e.message };
+    }
+  }
+
   // Run unit tests
   const unitTests = [
     testMermaidErrorHandling(),
-    testParserExtensibility()
+    testParserExtensibility(),
+    testPngDimensionScaling(),
+    testPngDimensionClamp(),
+    testPngDimensionFallback()
   ];
 
   for (const test of unitTests) {
