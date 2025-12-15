@@ -277,3 +277,17 @@ input[type="file"] { color: var(--muted); }
 #previewContent .mermaid { margin: 16px 0; padding: 8px; background: white; border-radius: 4px; }
 #previewContent pre { background: #2b2c2f; padding: 12px; border-radius: 6px; overflow-x: auto; }
 #previewContent code { background: #2b2c2f; padding: 2px 4px; border-radius: 4px; }
+
+
+/* Mode switch */
+.mode-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.mode-switch { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.mode-chip { background: var(--card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.mode-chip input { accent-color: var(--accent); }
+.mode-chip span { color: var(--fg); font-weight: 600; }
+
+/* PNG options */
+.png-options { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.03); }
+.inline-input { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.inline-input input { width: 160px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: #0f0f10; color: var(--fg); }
+.muted-text { color: var(--muted); font-size: 0.9rem; }
