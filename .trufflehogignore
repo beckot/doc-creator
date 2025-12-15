@@ -1,0 +1,4 @@
+# Minified third-party Mermaid bundle (known false positive for secrets)
+pwa/libs/mermaid.min.js
+# Allowlist all vendor bundles under pwa/libs if needed for future minified updates
+pwa/libs/.*\.min\.js

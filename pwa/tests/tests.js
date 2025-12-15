@@ -7,6 +7,7 @@ window.addEventListener('load', () => {
     { name:'blockquote', file:'cases/blockquote.md', expect:{ headings:0, tables:0, blockQuotes:1, codeBlocks:0 }, golden:{ blockQuoteParas:2 } },
     { name:'lists-nested', file:'cases/lists-nested.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:0 }, golden:{ listParas:7, listLevels:{ lvl0:4, lvl1:2, lvl2:1 } } },
     { name:'code-mermaid', file:'cases/code-mermaid.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
+    { name:'mermaid-claimed-none', file:'cases/mermaid-claimed-none.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
     { name:'large', file:'cases/large.md', expect:{ headings:4, tables:1, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, tables:1, headingStyles:4 } }
   ];
 
@@ -53,10 +54,46 @@ window.addEventListener('load', () => {
     }
   }
 
+  function testPngDimensionScaling(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 800, svgHeight: 400 }, 6000, DocConverter._internals.MAX_PNG_DIMENSION);
+      const pass = dims.width === 6000 && dims.height === 3000;
+      return { name: 'png-dimension-scaling', pass, message: pass ? '6000px → 3000px preserves aspect' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-scaling', pass: false, message: e.message };
+    }
+  }
+
+  function testPngDimensionClamp(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 200, svgHeight: 100 }, 20000, DocConverter._internals.MAX_PNG_DIMENSION);
+      const pass = dims.width === 10000 && dims.height === 5000;
+      return { name: 'png-dimension-clamp', pass, message: pass ? 'Clamped to 10k px max' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-clamp', pass: false, message: e.message };
+    }
+  }
+
+  function testPngDimensionFallback(){
+    totalTests++;
+    try {
+      const dims = DocConverter._internals.calculatePngDimensions({ svgWidth: 0, svgHeight: 0 }, 500);
+      const pass = dims.width === 500 && dims.height === 250;
+      return { name: 'png-dimension-fallback', pass, message: pass ? 'Fallback dimensions used' : `Got ${dims.width}x${dims.height}` };
+    } catch (e) {
+      return { name: 'png-dimension-fallback', pass: false, message: e.message };
+    }
+  }
+
   // Run unit tests
   const unitTests = [
     testMermaidErrorHandling(),
-    testParserExtensibility()
+    testParserExtensibility(),
+    testPngDimensionScaling(),
+    testPngDimensionClamp(),
+    testPngDimensionFallback()
   ];
 
   for (const test of unitTests) {
