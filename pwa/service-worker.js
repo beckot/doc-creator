@@ -16,7 +16,8 @@ const PRECACHE_URLS = [
   './tests/cases/blockquote.md',
   './tests/cases/lists-nested.md',
   './tests/cases/code-mermaid.md',
-  './tests/cases/large.md'
+  './tests/cases/large.md',
+  './tests/cases/toc-links.md'
 ];
 
 self.addEventListener('install', (event) => {

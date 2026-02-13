@@ -632,16 +632,55 @@
     return tokens.length > 0 ? tokens : [{ text: code }];
   }
 
-  // Generate bookmark name from heading text (slug-style)
-  function generateBookmark(text) {
-    // Extract plain text from runs if needed
-    const plainText = typeof text === 'string' ? text : 
-      text.map(r => r.text).join('');
-    return plainText
+  function getPlainText(text) {
+    if (typeof text === 'string') return text;
+    return (text || []).map(r => r.text || '').join('');
+  }
+
+  function slugifyMarkdown(text) {
+    const normalized = (text || '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .substring(0, 40); // Word bookmark limit
+      .replace(/^-|-$/g, '');
+    return normalized || 'section';
+  }
+
+  function makeBookmarkName(slug, used) {
+    let name = slugifyMarkdown(slug);
+    if (!/^[a-z]/.test(name)) name = `h-${name}`;
+    name = name.substring(0, 40);
+    let candidate = name;
+    let suffix = 1;
+    while (used.has(candidate)) {
+      const suffixText = `-${suffix++}`;
+      const maxBase = 40 - suffixText.length;
+      const trimmed = name.substring(0, Math.max(1, maxBase));
+      candidate = `${trimmed}${suffixText}`;
+    }
+    used.add(candidate);
+    return candidate;
+  }
+
+  function buildHeadingAnchors(tokens) {
+    const slugCounts = new Map();
+    const usedBookmarks = new Set();
+    const headingBookmarks = new Map();
+    const anchorToBookmark = new Map();
+
+    for (const token of tokens) {
+      if (token.type !== 'heading') continue;
+      const plainText = getPlainText(token.content);
+      const baseSlug = slugifyMarkdown(plainText);
+      const count = slugCounts.get(baseSlug) || 0;
+      const slug = count === 0 ? baseSlug : `${baseSlug}-${count}`;
+      slugCounts.set(baseSlug, count + 1);
+
+      const bookmark = makeBookmarkName(slug, usedBookmarks);
+      headingBookmarks.set(token, bookmark);
+      anchorToBookmark.set(slug, bookmark);
+    }
+
+    return { headingBookmarks, anchorToBookmark };
   }
 
   // Parse table into rows of cells
@@ -664,6 +703,7 @@
   // Build word/document.xml from parsed tokens
   function buildDocumentXml(tokens, imageMap) {
     const { escapeXml } = window.DOCXTemplates;
+    const { headingBookmarks, anchorToBookmark } = buildHeadingAnchors(tokens);
     let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     xml += '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">';
     xml += '<w:body>';
@@ -675,22 +715,22 @@
         // Horizontal rule as border paragraph
         xml += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="999999"/></w:pBdr></w:pPr><w:r><w:t></w:t></w:r></w:p>';
       } else if (token.type === 'heading') {
-        const bookmark = generateBookmark(token.content);
+        const bookmark = headingBookmarks.get(token) || makeBookmarkName(getPlainText(token.content), new Set());
         const bookmarkId = Math.floor(Math.random() * 1000000);
         xml += `<w:p><w:pPr><w:pStyle w:val="Heading${token.level}"/></w:pPr>`;
         xml += `<w:bookmarkStart w:id="${bookmarkId}" w:name="${escapeXml(bookmark)}"/>`;
-        xml += buildRuns(token.content);
+        xml += buildRuns(token.content, anchorToBookmark);
         xml += `<w:bookmarkEnd w:id="${bookmarkId}"/>`;
         xml += '</w:p>';
       } else if (token.type === 'paragraph') {
         xml += '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>';
-        xml += buildRuns(token.content);
+        xml += buildRuns(token.content, anchorToBookmark);
         xml += '</w:p>';
       } else if (token.type === 'blockquote') {
         for (const subToken of token.content) {
           xml += '<w:p><w:pPr><w:pStyle w:val="BlockQuote"/></w:pPr>';
           if (subToken.type === 'paragraph') {
-            xml += buildRuns(subToken.content);
+            xml += buildRuns(subToken.content, anchorToBookmark);
           } else {
             xml += `<w:r><w:t>${escapeXml(JSON.stringify(subToken))}</w:t></w:r>`;
           }
@@ -735,7 +775,7 @@
           const numId = item.ordered ? baseNumIdOrdered : baseNumIdUnordered;
           xml += `<w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr>`;
           xml += '</w:pPr>';
-          xml += buildRuns(item.runs);
+          xml += buildRuns(item.runs, anchorToBookmark);
           xml += '</w:p>';
         }
       } else if (token.type === 'table') {
@@ -788,7 +828,8 @@
               for (const run of cell) {
                 // Handle internal anchor links in tables
                 if (run.anchor) {
-                  xml += `<w:hyperlink w:anchor="${escapeXml(run.anchor)}">`;
+                  const anchorTarget = anchorToBookmark.get(run.anchor) || run.anchor;
+                  xml += `<w:hyperlink w:anchor="${escapeXml(anchorTarget)}">`;
                   xml += '<w:r>';
                   xml += '<w:rPr><w:rStyle w:val="Hyperlink"/>';
                   if (isHeader) xml += '<w:b/>';
@@ -858,13 +899,14 @@
   }
 
   // Build runs for inline formatting
-  function buildRuns(runs) {
+  function buildRuns(runs, anchorToBookmark) {
     const { escapeXml } = window.DOCXTemplates;
     let xml = '';
     for (const run of runs) {
       // Internal anchor link - use w:hyperlink with w:anchor
       if (run.anchor) {
-        xml += `<w:hyperlink w:anchor="${escapeXml(run.anchor)}">`;
+        const anchorTarget = (anchorToBookmark && anchorToBookmark.get(run.anchor)) || run.anchor;
+        xml += `<w:hyperlink w:anchor="${escapeXml(anchorTarget)}">`;
         xml += '<w:r>';
         xml += '<w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr>';
         xml += `<w:t>${escapeXml(run.text)}</w:t>`;

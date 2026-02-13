@@ -8,7 +8,8 @@ window.addEventListener('load', () => {
     { name:'lists-nested', file:'cases/lists-nested.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:0 }, golden:{ listParas:7, listLevels:{ lvl0:4, lvl1:2, lvl2:1 } } },
     { name:'code-mermaid', file:'cases/code-mermaid.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
     { name:'mermaid-claimed-none', file:'cases/mermaid-claimed-none.md', expect:{ headings:0, tables:0, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, codeParas:1 } },
-    { name:'large', file:'cases/large.md', expect:{ headings:4, tables:1, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, tables:1, headingStyles:4 } }
+    { name:'large', file:'cases/large.md', expect:{ headings:4, tables:1, blockQuotes:0, codeBlocks:1 }, golden:{ mermaidImages:1, tables:1, headingStyles:4 } },
+    { name:'toc-links', file:'cases/toc-links.md', expect:{ headings:5, tables:0, blockQuotes:0, codeBlocks:0 }, golden:{ anchorTargets:true } }
   ];
 
   const reportEl = document.getElementById('report');
@@ -133,6 +134,19 @@ window.addEventListener('load', () => {
       const codeParas = (docXml.match(/<w:pStyle w:val="CodeBlock"/g) || []).length;
 
       const golden = c.golden || {};
+      const bookmarkNames = new Set();
+      const bookmarkRegex = /<w:bookmarkStart[^>]*w:name="([^"]+)"/g;
+      let bookmarkMatch;
+      while ((bookmarkMatch = bookmarkRegex.exec(docXml)) !== null) {
+        bookmarkNames.add(bookmarkMatch[1]);
+      }
+      const hyperlinkAnchors = [];
+      const hyperlinkRegex = /<w:hyperlink[^>]*w:anchor="([^"]+)"/g;
+      let hyperlinkMatch;
+      while ((hyperlinkMatch = hyperlinkRegex.exec(docXml)) !== null) {
+        hyperlinkAnchors.push(hyperlinkMatch[1]);
+      }
+      const allAnchorTargetsValid = hyperlinkAnchors.every(anchor => bookmarkNames.has(anchor));
       const goldenChecks = [];
       if (golden.paragraphs !== undefined) goldenChecks.push({ key:'paragraphs', actual:paraCount, expected:golden.paragraphs, ok: paraCount===golden.paragraphs });
       if (golden.headingStyles !== undefined) goldenChecks.push({ key:'headingStyles', actual:headingCount, expected:golden.headingStyles, ok: headingCount===golden.headingStyles });
@@ -144,6 +158,9 @@ window.addEventListener('load', () => {
         goldenChecks.push({ key:'lvl0', actual:lvl0, expected:golden.listLevels.lvl0, ok: lvl0===golden.listLevels.lvl0 });
         goldenChecks.push({ key:'lvl1', actual:lvl1, expected:golden.listLevels.lvl1, ok: lvl1===golden.listLevels.lvl1 });
         goldenChecks.push({ key:'lvl2', actual:lvl2, expected:golden.listLevels.lvl2, ok: lvl2===golden.listLevels.lvl2 });
+      }
+      if (golden.anchorTargets !== undefined) {
+        goldenChecks.push({ key:'anchorTargets', actual:allAnchorTargetsValid, expected:true, ok: allAnchorTargetsValid === true });
       }
       if (golden.mermaidImages !== undefined) goldenChecks.push({ key:'mermaidImages', actual:mermaidImages, expected:golden.mermaidImages, ok: mermaidImages===golden.mermaidImages });
       if (golden.codeParas !== undefined) goldenChecks.push({ key:'codeParas', actual:codeParas, expected:golden.codeParas, ok: codeParas===golden.codeParas });
