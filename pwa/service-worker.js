@@ -1,5 +1,5 @@
 /* Minimal service worker for offline precache */
-const CACHE_NAME = 'md-docx-pwa-v8';
+const CACHE_NAME = 'md-docx-pwa-v9';
 const PRECACHE_URLS = [
   './index.html',
   './styles.css',

@@ -106,6 +106,21 @@ footer {
   border: 1px solid var(--border);
 }
 
+.version.version-live {
+  color: #9be9a8;
+  border-color: #2f6b3d;
+}
+
+.version.version-update {
+  color: #ffd28f;
+  border-color: #8b5e1a;
+}
+
+.version.version-no-sw {
+  color: #ffb3b3;
+  border-color: #8b3a3a;
+}
+
 /* Responsive tweaks */
 @media (max-width: 600px) {
   .container {

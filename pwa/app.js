@@ -14,13 +14,44 @@
   const modeInputs = document.querySelectorAll('input[name="outputMode"]');
   const pngOptions = document.getElementById('pngOptions');
   const pngWidthInput = document.getElementById('pngWidthInput');
+  const versionBadge = document.getElementById('versionBadge');
 
   const DRAFT_KEY = 'draft_markdown_v1';
   const HISTORY_KEY = 'conversion_history_v1';
   const MODE_KEY = 'output_mode_v1';
   const PNG_WIDTH_KEY = 'png_width_v1';
+  const RELEASE_KEY = 'seen_release_v1';
+  const APP_VERSION = 'v1.6.2';
+  const APP_BUILD = '2026-02-13.1';
+  const CACHE_NAME = 'md-docx-pwa-v9';
   const DEFAULT_PNG_WIDTH = 3000;
   const MAX_PNG_DIMENSION = 10000;
+
+  renderVersionBadge();
+
+  function renderVersionBadge() {
+    if (!versionBadge) return;
+
+    const releaseId = `${APP_VERSION}+${APP_BUILD}`;
+    let seenRelease = '';
+    try { seenRelease = localStorage.getItem(RELEASE_KEY) || ''; } catch {}
+
+    const isFirstSeen = seenRelease !== releaseId;
+    let state = 'version-no-sw';
+    let suffix = 'offline cache not active';
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      state = isFirstSeen ? 'version-update' : 'version-live';
+      suffix = isFirstSeen ? 'new release loaded' : 'up to date';
+    }
+
+    versionBadge.classList.remove('version-live', 'version-update', 'version-no-sw');
+    versionBadge.classList.add(state);
+    versionBadge.textContent = `${APP_VERSION} • ${suffix}`;
+    versionBadge.title = `Build ${APP_BUILD} • Cache ${CACHE_NAME}`;
+
+    try { localStorage.setItem(RELEASE_KEY, releaseId); } catch {}
+  }
 
   // Service worker registration
   if ('serviceWorker' in navigator) {
