@@ -1,0 +1,20 @@
+{
+  "name": "doc-creator-cli",
+  "version": "1.0.0",
+  "description": "CLI tool to bundle multiple Markdown files into a Word (.docx) document",
+  "main": "bundle.js",
+  "bin": {
+    "bundle-docs": "./bundle.js"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "glob": "^10.0.0",
+    "minimist": "^1.2.8"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

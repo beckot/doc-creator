@@ -23,6 +23,7 @@ wheels/
 venv/
 ENV/
 env/
+node_modules/
 
 # Output directories - may contain client data
 outputs/
