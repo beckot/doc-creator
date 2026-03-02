@@ -1,5 +1,5 @@
 /* Minimal service worker for offline precache */
-const CACHE_NAME = 'md-docx-pwa-v9';
+const CACHE_NAME = 'md-docx-pwa-v10';
 const PRECACHE_URLS = [
   './index.html',
   './styles.css',
@@ -46,7 +46,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  
+
   // Network-first strategy for development (always fetch fresh content)
   // Falls back to cache only if network fails
   event.respondWith(

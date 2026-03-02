@@ -1,6 +1,6 @@
 {
   "name": "doc-creator-cli",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "description": "CLI tool to bundle multiple Markdown files into a Word (.docx) document",
   "main": "bundle.js",
   "bin": {
