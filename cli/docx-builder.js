@@ -119,7 +119,7 @@ function buildHeadingAnchors(tokens) {
 // OOXML run and document builders (ported from pwa/app.js)
 // ---------------------------------------------------------------------------
 
-function buildRuns(runs, anchorToBookmark) {
+function buildRuns(runs, anchorToBookmark, linkMap = {}, linkIndex = { value: 1 }) {
   let xml = '';
   for (const run of (runs || [])) {
     if (run.anchor) {
@@ -129,13 +129,26 @@ function buildRuns(runs, anchorToBookmark) {
       xml += `<w:t>${T.escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
       continue;
     }
+
+    // External link - use w:hyperlink with r:id
+    if (run.link) {
+      let rId = linkMap[run.link];
+      if (!rId) {
+        rId = `rIdExtLink${linkIndex.value++}`;
+        linkMap[run.link] = rId;
+      }
+      xml += `<w:hyperlink r:id="${rId}">`;
+      xml += '<w:r><w:rPr><w:rStyle w:val="Hyperlink"/><w:color w:val="0563C1"/></w:rPr>';
+      xml += `<w:t xml:space="preserve">${T.escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
+      continue;
+    }
+
     xml += '<w:r>';
-    if (run.bold || run.italic || run.code || run.link) {
+    if (run.bold || run.italic || run.code) {
       xml += '<w:rPr>';
       if (run.bold) xml += '<w:b/>';
       if (run.italic) xml += '<w:i/>';
       if (run.code) xml += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="20"/><w:shd w:val="clear" w:fill="F4F4F4"/>';
-      if (run.link) xml += '<w:color w:val="0563C1"/>';
       xml += '</w:rPr>';
     }
     xml += `<w:t xml:space="preserve">${T.escapeXml(run.text)}</w:t></w:r>`;
@@ -143,7 +156,7 @@ function buildRuns(runs, anchorToBookmark) {
   return xml;
 }
 
-function buildTokensXml(tokens, imageMap, anchorToBookmark, listCounterStart = 0) {
+function buildTokensXml(tokens, imageMap, anchorToBookmark, linkMap, linkIndex, listCounterStart = 0) {
   let xml = '';
   let listCounter = listCounterStart;
 
@@ -161,18 +174,18 @@ function buildTokensXml(tokens, imageMap, anchorToBookmark, listCounterStart = 0
       const bmId = Math.floor(Math.random() * 1000000);
       xml += `<w:p><w:pPr><w:pStyle w:val="Heading${token.level}"/></w:pPr>`;
       xml += `<w:bookmarkStart w:id="${bmId}" w:name="${T.escapeXml(bm)}"/>`;
-      xml += buildRuns(token.content, anchorToBookmark);
+      xml += buildRuns(token.content, anchorToBookmark, linkMap, linkIndex);
       xml += `<w:bookmarkEnd w:id="${bmId}"/></w:p>`;
 
     } else if (token.type === 'paragraph') {
       xml += '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>';
-      xml += buildRuns(token.content, anchorToBookmark);
+      xml += buildRuns(token.content, anchorToBookmark, linkMap, linkIndex);
       xml += '</w:p>';
 
     } else if (token.type === 'blockquote') {
       for (const sub of token.content) {
         xml += '<w:p><w:pPr><w:pStyle w:val="BlockQuote"/></w:pPr>';
-        if (sub.type === 'paragraph') xml += buildRuns(sub.content, anchorToBookmark);
+        if (sub.type === 'paragraph') xml += buildRuns(sub.content, anchorToBookmark, linkMap, linkIndex);
         xml += '</w:p>';
       }
 
@@ -197,9 +210,86 @@ function buildTokensXml(tokens, imageMap, anchorToBookmark, listCounterStart = 0
         xml += '<w:p><w:pPr><w:pStyle w:val="Normal"/>';
         xml += `<w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr>`;
         xml += '</w:pPr>';
-        xml += buildRuns(item.runs, anchorToBookmark);
+        xml += buildRuns(item.runs, anchorToBookmark, linkMap, linkIndex);
         xml += '</w:p>';
       }
+
+    } else if (token.type === 'table') {
+      xml += '<w:tbl>';
+      xml += '<w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/>';
+      xml += '<w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>';
+      xml += '</w:tblPr>';
+      if (token.rows.length > 0) {
+        const colCount = token.rows[0].length;
+        xml += '<w:tblGrid>';
+        const colWidth = Math.floor(9000 / colCount);
+        for (let c = 0; c < colCount; c++) {
+          xml += `<w:gridCol w:w="${colWidth}"/>`;
+        }
+        xml += '</w:tblGrid>';
+      }
+      for (let i = 0; i < token.rows.length; i++) {
+        const isHeader = i === 0;
+        const row = token.rows[i];
+        xml += '<w:tr>';
+        const expectedCols = token.rows[0].length;
+        for (let c = 0; c < expectedCols; c++) {
+          const cell = c < row.length ? row[c] : [];
+          xml += '<w:tc><w:tcPr>';
+          if (isHeader) {
+            xml += '<w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/>';
+          } else {
+            const bodyIndex = i - 1;
+            if (bodyIndex % 2 === 0) {
+              xml += '<w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>';
+            } else {
+              xml += '<w:shd w:val="clear" w:color="auto" w:fill="F3F3F3"/>';
+            }
+          }
+          xml += '</w:tcPr><w:p>';
+          if (isHeader) xml += '<w:pPr><w:jc w:val="left"/></w:pPr>';
+
+          if (cell.length > 0) {
+            for (const run of cell) {
+              if (run.anchor) {
+                const anchorTarget = anchorToBookmark.get(run.anchor) || run.anchor;
+                xml += `<w:hyperlink w:anchor="${T.escapeXml(anchorTarget)}">`;
+                xml += '<w:r><w:rPr><w:rStyle w:val="Hyperlink"/>';
+                if (isHeader) xml += '<w:b/>';
+                xml += `</w:rPr><w:t>${T.escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
+                continue;
+              }
+              if (run.link) {
+                let rId = linkMap[run.link];
+                if (!rId) {
+                  rId = `rIdExtLink${linkIndex.value++}`;
+                  linkMap[run.link] = rId;
+                }
+                xml += `<w:hyperlink r:id="${rId}">`;
+                xml += '<w:r><w:rPr><w:rStyle w:val="Hyperlink"/>';
+                if (isHeader) xml += '<w:b/>';
+                xml += `<w:color w:val="0563C1"/></w:rPr><w:t xml:space="preserve">${T.escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
+                continue;
+              }
+              xml += '<w:r>';
+              if (isHeader || run.bold || run.italic || run.code) {
+                xml += '<w:rPr>';
+                if (isHeader) xml += '<w:b/>';
+                if (run.bold) xml += '<w:b/>';
+                if (run.italic) xml += '<w:i/>';
+                if (run.code) xml += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="20"/><w:shd w:val="clear" w:fill="F4F4F4"/>';
+                xml += '</w:rPr>';
+              }
+              xml += `<w:t xml:space="preserve">${T.escapeXml(run.text)}</w:t></w:r>`;
+            }
+          } else {
+            xml += '<w:r><w:t></w:t></w:r>';
+          }
+          xml += '</w:p></w:tc>';
+        }
+        xml += '</w:tr>';
+      }
+      xml += '</w:tbl>';
 
     } else if (token.type === 'mermaid') {
       const info = imageMap[token.content];
@@ -233,6 +323,9 @@ function buildDocumentXml(tokenSets, imageMap, options = {}) {
   // Attach headingBookmarks to imageMap so buildTokensXml can access it
   imageMap.__headingBookmarks = headingBookmarks;
 
+  const linkMap = {};
+  const linkIndex = { value: 1 };
+
   let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
   xml += '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
   xml += ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -262,13 +355,13 @@ function buildDocumentXml(tokenSets, imageMap, options = {}) {
       xml += `<w:t>${label}</w:t></w:r></w:p>`;
     }
 
-    const result = buildTokensXml(tokens, imageMap, anchorToBookmark, listCounter);
+    const result = buildTokensXml(tokens, imageMap, anchorToBookmark, linkMap, linkIndex, listCounter);
     xml += result.xml;
     listCounter = result.listCounter;
   }
 
   xml += '</w:body></w:document>';
-  return xml;
+  return { xml, linkMap };
 }
 
 // ---------------------------------------------------------------------------
@@ -309,9 +402,11 @@ async function buildDocx(tokenSets, options = {}) {
   }
 
   // Build document XML
-  const docXml = buildDocumentXml(tokenSets, imageMap, options);
+  const docResult = buildDocumentXml(tokenSets, imageMap, options);
+  const docXml = docResult.xml;
+  const linkMap = docResult.linkMap || {};
 
-  // Assemble document relationships (static + image entries)
+  // Assemble document relationships (static + image entries + external hyperlinks)
   let rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
   rels += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
   rels += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
@@ -319,6 +414,9 @@ async function buildDocx(tokenSets, options = {}) {
   for (const info of Object.values(imageMap)) {
     if (!info.rId) continue;
     rels += `<Relationship Id="${info.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${info.name}"/>`;
+  }
+  for (const [url, rId] of Object.entries(linkMap)) {
+    rels += `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${T.escapeXml(url)}" TargetMode="External"/>`;
   }
   rels += '</Relationships>';
 

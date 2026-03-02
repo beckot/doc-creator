@@ -21,9 +21,9 @@
   const MODE_KEY = 'output_mode_v1';
   const PNG_WIDTH_KEY = 'png_width_v1';
   const RELEASE_KEY = 'seen_release_v1';
-  const APP_VERSION = 'v1.7.0';
-  const APP_BUILD = '2026-03-02.1';
-  const CACHE_NAME = 'md-docx-pwa-v10';
+  const APP_VERSION = 'v1.8.0';
+  const APP_BUILD = '2026-03-02.2';
+  const CACHE_NAME = 'md-docx-pwa-v11';
   const DEFAULT_PNG_WIDTH = 3000;
   const MAX_PNG_DIMENSION = 10000;
 
@@ -105,6 +105,61 @@
         const level = token.level;
         const text = token.content.map(r => r.text || '').join('');
         html += `<h${level}>${escapeHtml(text)}</h${level}>`;
+      } else if (token.type === 'paragraph') {
+        const text = token.content.map(r => {
+          let html = escapeHtml(r.text);
+          if (r.bold) html = `<strong>${html}</strong>`;
+          if (r.italic) html = `<em>${html}</em>`;
+          if (r.code) html = `<code>${html}</code>`;
+          if (r.link) html = `<a href="${escapeHtml(r.link)}">${html}</a>`;
+          return html;
+        }).join('');
+        html += `<p>${text}</p>`;
+      } else if (token.type === 'hr') {
+        html += '<hr>';
+      } else if (token.type === 'blockquote') {
+        html += '<blockquote>';
+        for (const subToken of token.content) {
+          const text = subToken.content.map(r => escapeHtml(r.text)).join('');
+          html += `<p>${text}</p>`;
+        }
+        html += '</blockquote>';
+      } else if (token.type === 'list') {
+        const tag = token.ordered ? 'ol' : 'ul';
+        html += `<${tag}>`;
+        for (const item of token.items) {
+          const text = item.runs.map(r => {
+            let html = escapeHtml(r.text);
+            if (r.bold) html = `<strong>${html}</strong>`;
+            if (r.italic) html = `<em>${html}</em>`;
+            if (r.code) html = `<code>${html}</code>`;
+            if (r.link) html = `<a href="${escapeHtml(r.link)}">${html}</a>`;
+            return html;
+          }).join('');
+          html += `<li style="margin-left: ${item.level * 20}px">${text}</li>`;
+        }
+        html += `</${tag}>`;
+      } else if (token.type === 'table') {
+        html += '<table border="1" style="border-collapse: collapse; width: 100%; margin: 1em 0;">';
+        for (let i = 0; i < token.rows.length; i++) {
+          const isHeader = i === 0;
+          const trTag = 'tr';
+          const tdTag = isHeader ? 'th' : 'td';
+          html += `<${trTag}>`;
+          for (const cell of token.rows[i]) {
+            const cellHtml = cell.map(r => {
+              let text = escapeHtml(r.text);
+              if (r.bold) text = `<strong>${text}</strong>`;
+              if (r.italic) text = `<em>${text}</em>`;
+              if (r.code) text = `<code>${text}</code>`;
+              if (r.link) text = `<a href="${escapeHtml(r.link)}">${text}</a>`;
+              return text;
+            }).join('');
+            html += `<${tdTag} style="padding: 4px; ${isHeader ? 'background-color: #f2f2f2;' : ''}">${cellHtml}</${tdTag}>`;
+          }
+          html += `</${trTag}>`;
+        }
+        html += '</table>';
       }
     }
 
@@ -735,6 +790,9 @@
   function buildDocumentXml(tokens, imageMap) {
     const { escapeXml } = window.DOCXTemplates;
     const { headingBookmarks, anchorToBookmark } = buildHeadingAnchors(tokens);
+    const linkMap = {}; // Maps external URLs to their rId
+    let linkIndex = 1;
+
     let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     xml += '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">';
     xml += '<w:body>';
@@ -750,18 +808,24 @@
         const bookmarkId = Math.floor(Math.random() * 1000000);
         xml += `<w:p><w:pPr><w:pStyle w:val="Heading${token.level}"/></w:pPr>`;
         xml += `<w:bookmarkStart w:id="${bookmarkId}" w:name="${escapeXml(bookmark)}"/>`;
-        xml += buildRuns(token.content, anchorToBookmark);
+        const runRes = buildRuns(token.content, anchorToBookmark, linkMap, linkIndex);
+        xml += runRes.xml;
+        linkIndex = runRes.linkIndex;
         xml += `<w:bookmarkEnd w:id="${bookmarkId}"/>`;
         xml += '</w:p>';
       } else if (token.type === 'paragraph') {
         xml += '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>';
-        xml += buildRuns(token.content, anchorToBookmark);
+        const runRes = buildRuns(token.content, anchorToBookmark, linkMap, linkIndex);
+        xml += runRes.xml;
+        linkIndex = runRes.linkIndex;
         xml += '</w:p>';
       } else if (token.type === 'blockquote') {
         for (const subToken of token.content) {
           xml += '<w:p><w:pPr><w:pStyle w:val="BlockQuote"/></w:pPr>';
           if (subToken.type === 'paragraph') {
-            xml += buildRuns(subToken.content, anchorToBookmark);
+            const runRes = buildRuns(subToken.content, anchorToBookmark, linkMap, linkIndex);
+            xml += runRes.xml;
+            linkIndex = runRes.linkIndex;
           } else {
             xml += `<w:r><w:t>${escapeXml(JSON.stringify(subToken))}</w:t></w:r>`;
           }
@@ -806,7 +870,9 @@
           const numId = item.ordered ? baseNumIdOrdered : baseNumIdUnordered;
           xml += `<w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr>`;
           xml += '</w:pPr>';
-          xml += buildRuns(item.runs, anchorToBookmark);
+          const runRes = buildRuns(item.runs, anchorToBookmark, linkMap, linkIndex);
+          xml += runRes.xml;
+          linkIndex = runRes.linkIndex;
           xml += '</w:p>';
         }
       } else if (token.type === 'table') {
@@ -871,8 +937,22 @@
                   continue;
                 }
 
+                // Handle external links in tables
+                if (run.link) {
+                  let rId = linkMap[run.link];
+                  if (!rId) {
+                    rId = `rIdExtLink${linkIndex++}`;
+                    linkMap[run.link] = rId;
+                  }
+                  xml += `<w:hyperlink r:id="${rId}">`;
+                  xml += '<w:r><w:rPr><w:rStyle w:val="Hyperlink"/>';
+                  if (isHeader) xml += '<w:b/>';
+                  xml += `<w:color w:val="0563C1"/></w:rPr><w:t xml:space="preserve">${escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
+                  continue;
+                }
+
                 xml += '<w:r>';
-                if (isHeader || run.bold || run.italic || run.code || run.link) {
+                if (isHeader || run.bold || run.italic || run.code) {
                   xml += '<w:rPr>';
                   if (isHeader) xml += '<w:b/>';
                   if (run.bold) xml += '<w:b/>';
@@ -881,9 +961,6 @@
                     xml += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>';
                     xml += '<w:sz w:val="20"/>';
                     xml += '<w:shd w:val="clear" w:fill="F4F4F4"/>';
-                  }
-                  if (run.link) {
-                    xml += '<w:color w:val="000000"/><w:u w:val="single"/>';
                   }
                   xml += '</w:rPr>';
                 }
@@ -926,11 +1003,11 @@
     }
 
     xml += '</w:body></w:document>';
-    return xml;
+    return { xml, linkMap };
   }
 
   // Build runs for inline formatting
-  function buildRuns(runs, anchorToBookmark) {
+  function buildRuns(runs, anchorToBookmark, linkMap = {}, linkIndex = 1) {
     const { escapeXml } = window.DOCXTemplates;
     let xml = '';
     for (const run of runs) {
@@ -946,8 +1023,21 @@
         continue;
       }
 
+      // External link - use w:hyperlink with r:id
+      if (run.link) {
+        let rId = linkMap[run.link];
+        if (!rId) {
+          rId = `rIdExtLink${linkIndex++}`;
+          linkMap[run.link] = rId;
+        }
+        xml += `<w:hyperlink r:id="${rId}">`;
+        xml += '<w:r><w:rPr><w:rStyle w:val="Hyperlink"/><w:color w:val="0563C1"/></w:rPr>';
+        xml += `<w:t xml:space="preserve">${escapeXml(run.text)}</w:t></w:r></w:hyperlink>`;
+        continue;
+      }
+
       xml += '<w:r>';
-      if (run.bold || run.italic || run.code || run.link) {
+      if (run.bold || run.italic || run.code) {
         xml += '<w:rPr>';
         if (run.bold) xml += '<w:b/>';
         if (run.italic) xml += '<w:i/>';
@@ -956,15 +1046,12 @@
           xml += '<w:sz w:val="20"/>';
           xml += '<w:shd w:val="clear" w:fill="F4F4F4"/>';
         }
-        if (run.link) {
-          xml += '<w:color w:val="0563C1"/>';
-        }
         xml += '</w:rPr>';
       }
       xml += `<w:t xml:space="preserve">${escapeXml(run.text)}</w:t>`;
       xml += '</w:r>';
     }
-    return xml;
+    return { xml, linkIndex };
   }
 
   // Build DOCX using JSZip
@@ -1107,16 +1194,27 @@
     // Add all required files
     zip.file('[Content_Types].xml', window.DOCXTemplates.getContentTypes());
     zip.file('_rels/.rels', window.DOCXTemplates.getRootRels());
-    zip.file('word/document.xml', buildDocumentXml(tokens, imageMap));
-    // Build dynamic document relationships including images
+
+    // Get document XML AND the extracted external links
+    const docXMLResult = buildDocumentXml(tokens, imageMap);
+    const documentXml = docXMLResult.xml;
+    const linkMap = docXMLResult.linkMap || {};
+
+    zip.file('word/document.xml', documentXml);
+    // Build dynamic document relationships including images and external links
     let rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     rels += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
     rels += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
     rels += '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>';
     let relIdCounter = 3;
     for (const key of Object.keys(imageMap)) {
+      if (key === '__headingBookmarks') continue; // Skip internal metadata
       const info = imageMap[key];
       rels += `<Relationship Id="${info.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${info.name}"/>`;
+      relIdCounter++;
+    }
+    for (const [url, rId] of Object.entries(linkMap)) {
+      rels += `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${window.DOCXTemplates.escapeXml(url)}" TargetMode="External"/>`;
       relIdCounter++;
     }
     rels += '</Relationships>';
