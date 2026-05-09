@@ -57,7 +57,7 @@ jobs:
         run: |
           BASE_SHA="${{ steps.trufflehog-base.outputs.base_sha }}"
           if [ -n "$BASE_SHA" ]; then
-            trufflehog git file://. \
+            trufflehog --no-update git file://. \
               --since-commit="$BASE_SHA" \
               --branch=HEAD \
               --only-verified \
